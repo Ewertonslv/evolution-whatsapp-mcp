@@ -1,0 +1,47 @@
+{
+  "name": "evolution-whatsapp-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that exposes WhatsApp (via the Evolution API) as tools for Claude and any MCP client — send/read messages, templates, and manage instances.",
+  "type": "module",
+  "bin": {
+    "evolution-whatsapp-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "whatsapp",
+    "evolution-api",
+    "claude",
+    "llm",
+    "ai-agents"
+  ],
+  "author": "Ewerton Silva",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ewertonslv/evolution-whatsapp-mcp.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
