@@ -12,6 +12,23 @@ connect a WhatsApp number and have real conversations.
 > Extracted and generalized from a production WhatsApp integration (a multi-tenant clinic SaaS), so the
 > messaging/instance layer is battle-tested — not a toy.
 
+## Architecture & where it runs
+
+```
+Claude (Desktop/Code)        evolution-whatsapp-mcp          Evolution API        WhatsApp
+     [MCP client]   ──stdio──►   (this package)    ──HTTP──►   (gateway)  ──────►  (phone)
+```
+
+- **This MCP server runs locally, on demand — nothing to host.** Your MCP client (Claude Desktop/Code)
+  spawns it as a child process over stdio (`npx evolution-whatsapp-mcp`); it starts when the client
+  needs it and exits when the client closes. No open ports, no deployment.
+- **The Evolution API is the part that must stay running**, because it holds the WhatsApp session
+  (like WhatsApp Web — if it goes down, the number disconnects). Run it **locally via Docker** to try
+  things out, or on a **small VPS** if you need it online 24/7 (e.g. to receive messages via webhook).
+  This server only needs its URL + API key.
+- The server is **stateless** — no database, no message storage. It's just a thin, secure bridge from
+  your MCP client to the Evolution API.
+
 ## Tools
 
 | Tool | Description |
@@ -31,7 +48,8 @@ Every tool takes an optional `instance` argument; if omitted it falls back to `E
 ## Prerequisites
 
 A running [Evolution API](https://doc.evolution-api.com/) server (v2.x) and its API key. The quickest way
-to run one locally is the official Docker image:
+to run one locally is the official Docker image — use **local Docker to try it out**, or a **VPS for 24/7**
+operation:
 
 ```bash
 docker run -d --name evolution -p 8080:8080 \
