@@ -54,7 +54,10 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
   server.registerTool(
     "send_text",
     {
-      description: "Send a WhatsApp text message to a phone number.",
+      description:
+        "Send a WhatsApp text message to a phone number. The message reaches a real person and " +
+        "can't be unsent. Don't call it twice for the same message: the second call sends a " +
+        "duplicate. Don't use it to test the connection, use connection_status for that.",
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
@@ -69,7 +72,10 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
   server.registerTool(
     "send_media",
     {
-      description: "Send an image, video, document or audio via URL or base64.",
+      description:
+        "Send an image, video, document or audio via URL or base64. The file reaches a real " +
+        "person and can't be unsent. Don't call it again after a call that returned a result, " +
+        "or the file is sent twice.",
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
@@ -145,7 +151,10 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
   server.registerTool(
     "create_instance",
     {
-      description: "Create a new Evolution instance (a WhatsApp connection slot).",
+      description:
+        "Create a new Evolution instance (a WhatsApp connection slot). Don't call it for an " +
+        "instance that already exists: check with connection_status first, and use get_qrcode " +
+        "to link a number to an existing instance.",
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       inputSchema: {
         instance: z.string().describe("Name for the new instance."),
@@ -180,7 +189,10 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
   server.registerTool(
     "disconnect_instance",
     {
-      description: "Log out / disconnect the WhatsApp number from the instance. Reconnecting requires scanning a new QR code.",
+      description:
+        "Log the WhatsApp number out of the instance. Reconnecting needs a person to scan a " +
+        "new QR code, so don't call it to fix a failed send or to restart the connection. " +
+        "Only call it when the user asks to disconnect.",
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
       inputSchema: { instance: instanceArg },
     },
@@ -191,7 +203,10 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
   server.registerTool(
     "configure_webhook",
     {
-      description: "Point the instance webhook to a public URL for inbound events. Replaces the current webhook.",
+      description:
+        "Point the instance webhook to a public URL for inbound events. This replaces the " +
+        "current webhook, so whatever was receiving events stops receiving them. Don't call " +
+        "it unless the user gave you the URL.",
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
