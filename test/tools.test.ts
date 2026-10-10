@@ -63,6 +63,25 @@ describe("tool registration", () => {
   });
 });
 
+describe("tool descriptions", () => {
+  const WRITES = ["send_text", "send_media", "create_instance", "disconnect_instance", "configure_webhook"];
+
+  it("every state-changing tool says when not to call it", async () => {
+    const { tools } = await (await connect()).listTools();
+    for (const name of WRITES) {
+      expect(tools.find((t) => t.name === name)?.description, name).toMatch(/[Dd]on't/);
+    }
+  });
+
+  it("state-changing tools have longer descriptions than read tools", async () => {
+    const { tools } = await (await connect()).listTools();
+    const length = (t: { description?: string }) => t.description?.length ?? 0;
+    const shortestWrite = Math.min(...tools.filter((t) => WRITES.includes(t.name)).map(length));
+    const longestRead = Math.max(...tools.filter((t) => !WRITES.includes(t.name)).map(length));
+    expect(shortestWrite).toBeGreaterThan(longestRead);
+  });
+});
+
 describe("tool calls", () => {
   it("send_text uses the default instance and returns the API response", async () => {
     const fn = mockFetch({ key: { id: "1" } });
