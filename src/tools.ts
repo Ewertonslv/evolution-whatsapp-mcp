@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { EvolutionClient, EvolutionError } from "./evolution.js";
-import { toRemoteJid } from "./schemas.js";
+import { brazilianNinthDigitVariant, toRemoteJid } from "./schemas.js";
 
 type TextResult = {
   content: { type: "text"; text: string }[];
@@ -37,6 +37,12 @@ async function run(fn: () => Promise<unknown>): Promise<TextResult> {
   }
 }
 
+/** True when a findMessages response reports no messages for the chat. */
+function isEmptyMessagePage(result: unknown): boolean {
+  const total = (result as { messages?: { total?: unknown } } | null)?.messages?.total;
+  return total === 0;
+}
+
 const instanceArg = z
   .string()
   .optional()
@@ -49,6 +55,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
     "send_text",
     {
       description: "Send a WhatsApp text message to a phone number.",
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
         number: z.string().describe('Recipient phone, e.g. "+55 11 99999-9999".'),
@@ -63,6 +70,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
     "send_media",
     {
       description: "Send an image, video, document or audio via URL or base64.",
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
         number: z.string().describe("Recipient phone."),
@@ -93,6 +101,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
     "find_chats",
     {
       description: "List the WhatsApp chats/conversations on the instance.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: { instance: instanceArg },
     },
     async ({ instance }) =>
@@ -103,18 +112,32 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
     "find_messages",
     {
       description: "Read the message history of a chat (by phone or JID).",
+      annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
         chat: z
           .string()
           .describe('Phone ("5511999999999") or JID ("...@s.whatsapp.net").'),
-        limit: z.number().int().positive().optional().describe("Max messages."),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Messages per page. Evolution returns 50 when omitted."),
+        page: z.number().int().positive().optional().describe("Page number, starting at 1."),
       },
     },
-    async ({ instance, chat, limit }) =>
-      run(() =>
-        client.findMessages(resolveInstance(client, instance), toRemoteJid(chat), limit),
-      ),
+    async ({ instance, chat, limit, page }) =>
+      run(async () => {
+        const name = resolveInstance(client, instance);
+        const jid = toRemoteJid(chat);
+        const result = await client.findMessages(name, jid, limit, page);
+        const variant = brazilianNinthDigitVariant(jid);
+        if (variant && isEmptyMessagePage(result)) {
+          return client.findMessages(name, variant, limit, page);
+        }
+        return result;
+      }),
   );
 
   // ---------------------------------------------------------------- instance
@@ -123,6 +146,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
     "create_instance",
     {
       description: "Create a new Evolution instance (a WhatsApp connection slot).",
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       inputSchema: {
         instance: z.string().describe("Name for the new instance."),
       },
@@ -135,6 +159,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
     {
       description:
         "Get the QR code (base64) to link a WhatsApp number to the instance.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: { instance: instanceArg },
     },
     async ({ instance }) =>
@@ -145,6 +170,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
     "connection_status",
     {
       description: 'Check whether the instance is connected (state "open").',
+      annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: { instance: instanceArg },
     },
     async ({ instance }) =>
@@ -154,7 +180,8 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
   server.registerTool(
     "disconnect_instance",
     {
-      description: "Log out / disconnect the WhatsApp number from the instance.",
+      description: "Log out / disconnect the WhatsApp number from the instance. Reconnecting requires scanning a new QR code.",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
       inputSchema: { instance: instanceArg },
     },
     async ({ instance }) =>
@@ -164,7 +191,8 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
   server.registerTool(
     "configure_webhook",
     {
-      description: "Point the instance webhook to a public URL for inbound events.",
+      description: "Point the instance webhook to a public URL for inbound events. Replaces the current webhook.",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
         url: z.string().url().describe("Public HTTPS webhook URL."),

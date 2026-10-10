@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EvolutionClient, EvolutionError } from "../src/evolution.js";
-import { normalizePhone, toRemoteJid } from "../src/schemas.js";
+import { brazilianNinthDigitVariant, normalizePhone, toRemoteJid } from "../src/schemas.js";
 
 const BASE = "http://evo.test";
 const KEY = "test-key";
@@ -37,6 +37,17 @@ describe("helpers", () => {
     expect(toRemoteJid("+55 11 99999-9999")).toBe("5511999999999@s.whatsapp.net");
     expect(toRemoteJid("123@g.us")).toBe("123@g.us");
   });
+
+  it("brazilianNinthDigitVariant toggles the ninth digit on Brazilian JIDs only", () => {
+    expect(brazilianNinthDigitVariant("5511999999999@s.whatsapp.net")).toBe(
+      "551199999999@s.whatsapp.net",
+    );
+    expect(brazilianNinthDigitVariant("551199999999@s.whatsapp.net")).toBe(
+      "5511999999999@s.whatsapp.net",
+    );
+    expect(brazilianNinthDigitVariant("14155552671@s.whatsapp.net")).toBeNull();
+    expect(brazilianNinthDigitVariant("123@g.us")).toBeNull();
+  });
 });
 
 describe("EvolutionClient transport", () => {
@@ -56,6 +67,47 @@ describe("EvolutionClient transport", () => {
       body: "boom",
     });
     await expect(client().sendText("inst", "x", "y")).rejects.toBeInstanceOf(EvolutionError);
+  });
+  it("URL-encodes the instance name", async () => {
+    const fn = mockFetch({});
+    await client().connectionStatus("my inst/../x");
+    expect(lastCall(fn).url).toBe(`${BASE}/instance/connectionState/my%20inst%2F..%2Fx`);
+  });
+
+  it("passes an abort signal to fetch", async () => {
+    const fn = mockFetch({});
+    await client().findChats("inst");
+    expect(lastCall(fn).init!.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("throws EvolutionError when the request times out", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal!.addEventListener("abort", () => reject(init.signal!.reason));
+          }),
+      ),
+    );
+    const slow = new EvolutionClient({ baseUrl: BASE, apiKey: KEY, timeoutMs: 10 });
+    await expect(slow.findChats("inst")).rejects.toMatchObject({
+      name: "EvolutionError",
+      message: "Evolution API POST /chat/findChats/inst timed out after 10ms",
+    });
+  });
+
+  it("throws EvolutionError when the server is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      }),
+    );
+    await expect(client().findChats("inst")).rejects.toMatchObject({
+      name: "EvolutionError",
+      message: "Evolution API POST /chat/findChats/inst could not be reached: fetch failed",
+    });
   });
 });
 
@@ -91,18 +143,19 @@ describe("EvolutionClient operations", () => {
     expect(lastCall(fn).url).toBe(`${BASE}/chat/findChats/inst`);
   });
 
-  it("findMessages builds the where filter and includes limit", async () => {
+  it("findMessages builds the where filter and sends limit as the page size", async () => {
     const fn = mockFetch([{ id: "m1" }]);
-    await client().findMessages("inst", "5511999999999@s.whatsapp.net", 20);
+    await client().findMessages("inst", "5511999999999@s.whatsapp.net", 20, 2);
     const { url, body } = lastCall(fn);
     expect(url).toBe(`${BASE}/chat/findMessages/inst`);
     expect(body).toEqual({
       where: { key: { remoteJid: "5511999999999@s.whatsapp.net" } },
-      limit: 20,
+      offset: 20,
+      page: 2,
     });
   });
 
-  it("findMessages omits limit when not given", async () => {
+  it("findMessages omits paging when not given", async () => {
     const fn = mockFetch([]);
     await client().findMessages("inst", "5511999999999@s.whatsapp.net");
     expect(lastCall(fn).body).toEqual({

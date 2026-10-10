@@ -1,7 +1,7 @@
 {
   "name": "evolution-whatsapp-mcp",
-  "version": "0.1.0",
-  "description": "MCP server that exposes WhatsApp (via the Evolution API) as tools for Claude and any MCP client — send/read messages, templates, and manage instances.",
+  "version": "0.1.1",
+  "description": "MCP server that exposes WhatsApp (via the Evolution API) as tools for Claude and any MCP client: send and read messages, send media, and manage instances.",
   "type": "module",
   "bin": {
     "evolution-whatsapp-mcp": "dist/index.js"
@@ -42,6 +42,6 @@
   "devDependencies": {
     "@types/node": "^20.14.0",
     "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+    "vitest": "^4.1.11"
   }
 }
