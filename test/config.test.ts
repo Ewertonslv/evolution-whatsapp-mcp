@@ -45,3 +45,13 @@ describe("loadConfig warnings", () => {
     expect(JSON.stringify(w)).not.toContain("secret-key-value");
   });
 });
+
+describe("loadConfig confirmWrites", () => {
+  it.each(["true", "TRUE", "1", "yes", " Yes "])("EVOLUTION_CONFIRM_WRITES=%j turns confirmation on", (v) => {
+    expect(loadConfig({ EVOLUTION_CONFIRM_WRITES: v }).confirmWrites).toBe(true);
+  });
+
+  it.each(["false", "0", "", "no", "on", undefined])("EVOLUTION_CONFIRM_WRITES=%j leaves it off", (v) => {
+    expect(loadConfig({ EVOLUTION_CONFIRM_WRITES: v }).confirmWrites).toBe(false);
+  });
+});

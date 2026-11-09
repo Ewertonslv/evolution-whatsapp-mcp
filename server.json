@@ -44,6 +44,13 @@
           "isRequired": false
         },
         {
+          "name": "EVOLUTION_CONFIRM_WRITES",
+          "description": "Set to true to require a human confirmation (confirmation card or elicitation dialog) before send_text, send_media, create_instance, disconnect_instance or configure_webhook run. Clients that can show neither are refused. Default false.",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "false"
+        },
+        {
           "name": "EVOLUTION_ALLOWED_NUMBERS",
           "description": "Comma-separated phone numbers that send_text and send_media may reach. Empty means no restriction.",
           "isRequired": false
