@@ -366,3 +366,54 @@ describe("response limits", () => {
     expect(JSON.parse(text(result)).base64).toBe("data:image/png;base64,AAAA");
   });
 });
+
+describe("input validation", () => {
+  const send = async (args: Record<string, unknown>, name = "send_text") => {
+    const fn = mockFetch({ key: { id: "1" } });
+    const result = await (await connect("demo")).callTool({ name, arguments: args });
+    return { fn, result };
+  };
+
+  it.each(["", "   ", "+55 (11) 9", "abc", "1234567", "1234567890123456"])(
+    "send_text rejects number %j and names the field",
+    async (number) => {
+      const { fn, result } = await send({ number, text: "hi" });
+      expect(result.isError).toBe(true);
+      expect(text(result)).toMatch(/number/i);
+      expect(fn).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["5511999999999@s.whatsapp.net", "120363000000@g.us", "+55 11 99999-9999", "12345678"])(
+    "send_text accepts number %s",
+    async (number) => {
+      const { fn, result } = await send({ number, text: "hi" });
+      expect(result.isError).toBeFalsy();
+      expect(fn).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(["", "   ", "\n\t"])("send_text rejects text %j", async (t) => {
+    const { fn, result } = await send({ number: "5511999999999", text: t });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toMatch(/text/i);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("send_media rejects a bad number, a negative delay and a fractional delay", async () => {
+    const base = { mediatype: "image", media: "https://x.test/a.png" };
+    for (const extra of [{ number: "" }, { number: "5511999999999", delay: -1 }, { number: "5511999999999", delay: 1.5 }]) {
+      const { fn, result } = await send({ ...base, ...extra }, "send_media");
+      expect(result.isError).toBe(true);
+      expect(fn).not.toHaveBeenCalled();
+    }
+  });
+
+  it("send_media accepts delay 0", async () => {
+    const { result } = await send(
+      { number: "5511999999999", mediatype: "image", media: "https://x.test/a.png", delay: 0 },
+      "send_media",
+    );
+    expect(result.isError).toBeFalsy();
+  });
+});

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { Config } from "./config.js";
 import { EvolutionClient, EvolutionError } from "./evolution.js";
-import { brazilianNinthDigitVariant, isSecureWebhookUrl, normalizePhone, toRemoteJid } from "./schemas.js";
+import { brazilianNinthDigitVariant, isSecureWebhookUrl, normalizePhone, phoneSchema, textSchema, toRemoteJid } from "./schemas.js";
 
 type TextResult = {
   content: { type: "text"; text: string }[];
@@ -116,8 +116,8 @@ export function registerTools(
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
-        number: z.string().describe('Recipient phone, e.g. "+55 11 99999-9999".'),
-        text: z.string().describe("Message body."),
+        number: phoneSchema.describe('Recipient phone, e.g. "+55 11 99999-9999".'),
+        text: textSchema.describe("Message body."),
       },
     },
     async ({ instance, number, text }) =>
@@ -135,13 +135,13 @@ export function registerTools(
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
-        number: z.string().describe("Recipient phone."),
+        number: phoneSchema.describe("Recipient phone."),
         mediatype: z.enum(["image", "video", "document", "audio"]),
         media: z.string().describe("Public URL or base64-encoded content."),
         mimetype: z.string().optional().describe('e.g. "image/png".'),
         caption: z.string().optional(),
         fileName: z.string().optional(),
-        delay: z.number().int().optional().describe("Delay in ms before sending."),
+        delay: z.number().int().min(0).optional().describe("Delay in ms before sending."),
       },
     },
     async ({ instance, number, mediatype, media, mimetype, caption, fileName, delay }) =>

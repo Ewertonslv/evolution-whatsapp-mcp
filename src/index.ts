@@ -49,7 +49,9 @@ async function main(): Promise<void> {
     version,
   });
 
-  registerTools(server, client, loadConfig(process.env));
+  const config = loadConfig(process.env);
+  for (const warning of config.warnings) console.error(`Warning: ${warning}`);
+  registerTools(server, client, config);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

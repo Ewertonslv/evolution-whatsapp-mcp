@@ -22,3 +22,26 @@ describe("loadConfig", () => {
     expect(loadConfig({ EVOLUTION_ALLOWED_NUMBERS: " , " }).allowedNumbers).toEqual([]);
   });
 });
+
+describe("loadConfig warnings", () => {
+  it("warns when the API URL is plain http on a public host", () => {
+    const w = loadConfig({ EVOLUTION_API_URL: "http://evo.example.com" }).warnings;
+    expect(w).toHaveLength(1);
+    expect(w[0]).toMatch(/https/);
+  });
+
+  it.each([
+    "https://evo.example.com",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    "http://[::1]:8080",
+    undefined,
+  ])("no warning for %s", (url) => {
+    expect(loadConfig({ EVOLUTION_API_URL: url }).warnings).toEqual([]);
+  });
+
+  it("does not leak the key into warnings", () => {
+    const w = loadConfig({ EVOLUTION_API_URL: "http://evo.example.com", EVOLUTION_API_KEY: "secret-key-value" }).warnings;
+    expect(JSON.stringify(w)).not.toContain("secret-key-value");
+  });
+});
