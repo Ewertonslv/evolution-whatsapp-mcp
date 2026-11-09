@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-09
+
+### Fixed
+- MCP Registry name now uses the exact GitHub owner casing (`io.github.Ewertonslv/evolution-whatsapp-mcp`); the registry rejected the lowercase namespace.
+
 ## [0.3.0] - 2026-11-09
 
 ### Added

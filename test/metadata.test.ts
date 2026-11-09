@@ -11,7 +11,7 @@ const ENVS = [...new Set([...(read("src/index.ts") + read("src/config.ts")).matc
 
 describe("registry metadata", () => {
   it("server.json name matches package.json mcpName", () => {
-    expect(pkg.mcpName).toBe("io.github.ewertonslv/evolution-whatsapp-mcp");
+    expect(pkg.mcpName).toBe("io.github.Ewertonslv/evolution-whatsapp-mcp");
     expect(server.name).toBe(pkg.mcpName);
   });
 
