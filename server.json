@@ -45,7 +45,7 @@
         },
         {
           "name": "EVOLUTION_CONFIRM_WRITES",
-          "description": "Set to true to require a human confirmation (confirmation card or elicitation dialog) before send_text, send_media, create_instance, disconnect_instance or configure_webhook run. Clients that can show neither are refused. Default false.",
+          "description": "Set to true to require a human confirmation (elicitation dialog) before send_text, send_media, create_instance, disconnect_instance or configure_webhook run. Clients that can show no dialog are refused. Default false; an unrecognised value counts as true and prints a warning.",
           "isRequired": false,
           "isSecret": false,
           "default": "false"

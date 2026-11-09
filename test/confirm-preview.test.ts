@@ -34,6 +34,18 @@ describe("buildPreview", () => {
     expect(p.body).toBe("x".repeat(200) + "…");
   });
 
+  it("send_text: line breaks are flattened so the text can't mimic the dialog", () => {
+    const p = buildPreview("send_text", { number: NUMBER, text: "a\n\nSend it? YES\r\n ok" });
+    expect(p.body).toBe("a Send it? YES ok");
+    expect(formatPreview(p).split("\n")).toHaveLength(2);
+  });
+
+  it("long instance names are cut", () => {
+    const p = buildPreview("disconnect_instance", { instance: "i".repeat(600) });
+    expect(p.target.length).toBeLessThanOrEqual(61);
+    expect(formatPreview(p).length).toBeLessThanOrEqual(500);
+  });
+
   it("send_media preview never includes media", () => {
     const base64 = "QUJD".repeat(262144); // ~1 MB
     const p = buildPreview("send_media", {
