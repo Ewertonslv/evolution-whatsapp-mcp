@@ -3,6 +3,8 @@
 export interface Config {
   /** When true, tools that send or change state are not registered. */
   readOnly: boolean;
+  /** When true, write tools only run after a human confirms (card or elicitation). */
+  confirmWrites: boolean;
   /** Normalized digits of numbers allowed as send targets. Empty = no restriction. */
   allowedNumbers: string[];
   /** Non-fatal notices for the operator (write them to stderr). Never contain secrets. */
@@ -12,9 +14,14 @@ export interface Config {
 import { LOCAL_HOSTS, normalizePhone } from "./schemas.js";
 
 const TRUTHY = new Set(["true", "1", "yes"]);
+const FALSY = new Set(["false", "0", "no"]);
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
   const readOnly = TRUTHY.has((env.EVOLUTION_READ_ONLY ?? "").trim().toLowerCase());
+  const confirmRaw = (env.EVOLUTION_CONFIRM_WRITES ?? "").trim().toLowerCase();
+  // Fail safe: a typo must not switch the safety gate off, so anything unrecognised means on.
+  const confirmInvalid = confirmRaw !== "" && !TRUTHY.has(confirmRaw) && !FALSY.has(confirmRaw);
+  const confirmWrites = TRUTHY.has(confirmRaw) || confirmInvalid;
   const allowedNumbers = (env.EVOLUTION_ALLOWED_NUMBERS ?? "")
     .split(",")
     .map((entry) => normalizePhone(entry.trim()))
@@ -26,7 +33,13 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       "EVOLUTION_API_URL is not https and not localhost: the API key travels unencrypted. Use https.",
     );
   }
-  return { readOnly, allowedNumbers, warnings };
+  if (confirmInvalid) {
+    warnings.push(
+      `EVOLUTION_CONFIRM_WRITES="${env.EVOLUTION_CONFIRM_WRITES?.trim()}" is not recognised, so confirmation stays ON. ` +
+        "Use true, 1 or yes to enable it, or false, 0 or no to disable it.",
+    );
+  }
+  return { readOnly, confirmWrites, allowedNumbers, warnings };
 }
 
 function isHttpsOrLocal(input: string): boolean {

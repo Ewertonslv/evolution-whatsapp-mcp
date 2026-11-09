@@ -45,3 +45,23 @@ describe("loadConfig warnings", () => {
     expect(JSON.stringify(w)).not.toContain("secret-key-value");
   });
 });
+
+describe("loadConfig confirmWrites", () => {
+  it.each(["true", "TRUE", "1", "yes", " Yes "])("EVOLUTION_CONFIRM_WRITES=%j turns confirmation on", (v) => {
+    expect(loadConfig({ EVOLUTION_CONFIRM_WRITES: v }).confirmWrites).toBe(true);
+  });
+
+  it.each(["false", "FALSE", "0", "", " ", "no", undefined])("EVOLUTION_CONFIRM_WRITES=%j leaves it off, no warning", (v) => {
+    const c = loadConfig({ EVOLUTION_CONFIRM_WRITES: v });
+    expect(c.confirmWrites).toBe(false);
+    expect(c.warnings).toEqual([]);
+  });
+
+  it.each(["ture", "on", "enabled", "banana"])("EVOLUTION_CONFIRM_WRITES=%j is invalid: fails safe (on) and warns", (v) => {
+    const c = loadConfig({ EVOLUTION_CONFIRM_WRITES: v });
+    expect(c.confirmWrites).toBe(true);
+    expect(c.warnings).toHaveLength(1);
+    expect(c.warnings[0]).toContain(v);
+    expect(c.warnings[0]).toMatch(/true.*1.*yes/);
+  });
+});

@@ -23,6 +23,10 @@ startCommand:
         type: boolean
         default: false
         description: Hide every tool that sends or changes state (EVOLUTION_READ_ONLY).
+      confirmWrites:
+        type: boolean
+        default: false
+        description: Require a human confirmation before any tool that sends or changes state runs (EVOLUTION_CONFIRM_WRITES).
       allowedNumbers:
         type: string
         description: Comma-separated numbers send tools may reach (EVOLUTION_ALLOWED_NUMBERS). Empty means no restriction.
@@ -36,6 +40,7 @@ startCommand:
         EVOLUTION_DEFAULT_INSTANCE: config.defaultInstance || '',
         EVOLUTION_TIMEOUT_MS: config.timeoutMs ? String(config.timeoutMs) : '',
         EVOLUTION_READ_ONLY: config.readOnly ? 'true' : 'false',
+        EVOLUTION_CONFIRM_WRITES: config.confirmWrites ? 'true' : 'false',
         EVOLUTION_ALLOWED_NUMBERS: config.allowedNumbers || ''
       }
     })
