@@ -112,6 +112,32 @@ the pairing code. `configure_webhook` only accepts `https` URLs (plain `http` is
 `127.0.0.1` and `[::1]`). The server prints a warning on stderr if `EVOLUTION_API_URL` is neither
 `https` nor localhost, since the API key would travel unencrypted.
 
+## Confirm before writing
+
+Tool descriptions are advice, not a lock: a model can still call `disconnect_instance` to "restart the
+connection". With `EVOLUTION_CONFIRM_WRITES=true` the server holds each write (`send_text`, `send_media`,
+`create_instance`, `disconnect_instance`, `configure_webhook`) until a person confirms it through the
+client, a channel the model does not control. It is off by default, so headless automation keeps working;
+turn it on when a person is in the loop.
+
+What the person sees is a short preview: the action, the recipient with the number masked
+(`+55 11 9****-9999`), and up to 200 characters of the text. Media content and webhook paths or query
+strings are never shown. The dialog defaults to "no" and waits 120 seconds; anything other than an
+explicit yes (decline, cancel, timeout, error) sends nothing.
+
+| Client declares | Result |
+|---|---|
+| Form elicitation (`elicitation`, as in Claude Code) | A yes/no dialog before each write |
+| Anything else (no capabilities, URL-only elicitation, MCP Apps only) | The write is refused with `isError` and nothing is sent |
+
+A confirmation card for MCP Apps clients is not part of this release. Claude Code does not render MCP Apps
+(client matrix at modelcontextprotocol/modelcontextprotocol, 2026-11-03), so it uses the dialog. Some Claude
+Code versions have been reported to auto-decline elicitation forms; in that case the write is refused,
+never sent.
+
+It combines with the other limits: `EVOLUTION_ALLOWED_NUMBERS` is checked first (a number outside the list
+is refused without asking), and with `EVOLUTION_READ_ONLY` on there are no write tools to confirm.
+
 ## Example flow (end to end)
 
 Ask Claude:
