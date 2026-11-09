@@ -3,7 +3,7 @@
   "name": "io.github.ewertonslv/evolution-whatsapp-mcp",
   "title": "Evolution WhatsApp",
   "description": "Send and read WhatsApp messages, send media and manage instances via the Evolution API.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "websiteUrl": "https://github.com/Ewertonslv/evolution-whatsapp-mcp#readme",
   "repository": {
     "url": "https://github.com/Ewertonslv/evolution-whatsapp-mcp",
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "evolution-whatsapp-mcp",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {

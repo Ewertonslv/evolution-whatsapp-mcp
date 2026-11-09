@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-09
+
+### Added
+- `EVOLUTION_CONFIRM_WRITES` (default off): `send_text`, `send_media`, `create_instance`, `disconnect_instance` and `configure_webhook` wait for a human to confirm. Clients with form elicitation get a yes/no dialog (default no, 120 s); clients that can show no confirmation are refused and nothing is sent.
+- The confirmation preview masks the number and never shows media content or webhook paths and query strings.
+
 ## [0.2.0] - 2026-11-09
 
 ### Added
