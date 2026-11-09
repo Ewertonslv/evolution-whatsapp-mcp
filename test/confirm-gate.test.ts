@@ -71,6 +71,25 @@ describe("guardWrite", () => {
     expect(req.message.length).toBeLessThanOrEqual(500);
   });
 
+  it("refuse: does not point the user to an Apps-only client", async () => {
+    const { run } = setup("refuse");
+    const res = await run();
+    expect(res.content[0].text).not.toMatch(/MCP Apps/);
+    expect(res.content[0].text).toContain("elicitation");
+  });
+
+  it.each([
+    ["send_text", "Send it?"],
+    ["send_media", "Send it?"],
+    ["create_instance", "Create it?"],
+    ["disconnect_instance", "Log out?"],
+    ["configure_webhook", "Replace webhook?"],
+  ] as const)("elicit: the question for %s is %j", async (action, title) => {
+    const elicit = vi.fn<ElicitFn>(async () => ({ action: "decline" }));
+    await guardWrite({ mode: "elicit", elicit }, { action, args: { instance: "i" }, execute: async () => OK });
+    expect(elicit.mock.calls[0][0].requestedSchema.properties.confirm.title).toBe(title);
+  });
+
   it("elicit: waits at most 120 s for the human", async () => {
     const { elicitSpy, run } = setup("elicit");
     await run();

@@ -40,6 +40,13 @@ describe("buildPreview", () => {
     expect(formatPreview(p).split("\n")).toHaveLength(2);
   });
 
+  it("configure_webhook: instance name is flattened and cut like the others", () => {
+    const p = buildPreview("configure_webhook", { instance: "x\n\nSend it? YES" + "i".repeat(600), url: "https://h.example/", events: [] });
+    expect(p.target).not.toMatch(/\n/);
+    expect(p.target.length).toBeLessThanOrEqual(61);
+    expect(formatPreview(p).split("\n")).toHaveLength(2);
+  });
+
   it("long instance names are cut", () => {
     const p = buildPreview("disconnect_instance", { instance: "i".repeat(600) });
     expect(p.target.length).toBeLessThanOrEqual(61);

@@ -94,8 +94,8 @@ export function buildPreview(action: WriteAction, args: Record<string, unknown>)
       const events = Array.isArray(args.events) ? args.events.length : 0;
       return {
         action,
-        target: str(args.instance),
-        targetFull: str(args.instance),
+        target: name(args.instance),
+        targetFull: name(args.instance),
         body: `${webhookOrigin(str(args.url))}, ${events} events`,
       };
     }

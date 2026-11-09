@@ -30,6 +30,14 @@ export interface GateContext {
 /** How long the human has to answer the dialog. */
 export const ELICIT_TIMEOUT_MS = 120_000;
 
+const QUESTIONS: Record<WriteAction, string> = {
+  send_text: "Send it?",
+  send_media: "Send it?",
+  create_instance: "Create it?",
+  disconnect_instance: "Log out?",
+  configure_webhook: "Replace webhook?",
+};
+
 const fail = (text: string): ToolResult => ({ content: [{ type: "text", text }], isError: true });
 
 /** Fail closed: runs `execute` only in direct mode or after an explicit, strict human "yes". */
@@ -40,7 +48,7 @@ export async function guardWrite(
   if (ctx.mode === "direct") return op.execute();
   if (ctx.mode === "refuse") {
     return fail(
-      "This client can't show a confirmation, so nothing was sent. Use a client with MCP Apps or " +
+      "This client can't show a confirmation, so nothing was sent. Use a client that supports " +
         "elicitation, or unset EVOLUTION_CONFIRM_WRITES.",
     );
   }
@@ -52,7 +60,7 @@ export async function guardWrite(
         message: formatPreview(buildPreview(op.action, op.args)),
         requestedSchema: {
           type: "object",
-          properties: { confirm: { type: "boolean", title: "Send it?", default: false } },
+          properties: { confirm: { type: "boolean", title: QUESTIONS[op.action], default: false } },
           required: ["confirm"],
         },
       },
