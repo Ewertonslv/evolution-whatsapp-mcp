@@ -39,10 +39,12 @@ describe("env vars are declared everywhere", () => {
     expect(ENVS).toEqual(expect.arrayContaining(["EVOLUTION_API_URL", "EVOLUTION_API_KEY", "EVOLUTION_READ_ONLY"]));
   });
 
-  it.each(ENVS)("%s is in server.json and smithery.yaml", (name) => {
+  it.each(ENVS)("%s is in server.json, smithery.yaml, README and .env.example", (name) => {
     const vars = server.packages[0].environmentVariables.map((v: { name: string }) => v.name);
     expect(vars).toContain(name);
     expect(smithery).toContain(name);
+    expect(read("README.md")).toContain(name);
+    expect(read(".env.example")).toContain(name);
   });
 
   it("only the API key is secret, and it is required", () => {
