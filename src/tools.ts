@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { EvolutionClient, EvolutionError } from "./evolution.js";
-import { brazilianNinthDigitVariant, toRemoteJid } from "./schemas.js";
+import { brazilianNinthDigitVariant, isSecureWebhookUrl, toRemoteJid } from "./schemas.js";
 
 type TextResult = {
   content: { type: "text"; text: string }[];
@@ -210,7 +210,12 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         instance: instanceArg,
-        url: z.string().url().describe("Public HTTPS webhook URL."),
+        url: z
+          .string()
+          .refine(isSecureWebhookUrl, {
+            message: "Webhook URL must use https. http is only allowed for localhost, 127.0.0.1 or [::1].",
+          })
+          .describe("Public HTTPS webhook URL (http only for localhost)."),
         events: z
           .array(z.string())
           .optional()

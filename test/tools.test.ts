@@ -171,3 +171,41 @@ describe("tool calls", () => {
     expect(text(result)).toContain("Unauthorized");
   });
 });
+
+describe("configure_webhook url", () => {
+  const call = async (url: string) => {
+    const fn = mockFetch({});
+    const result = await (await connect("demo")).callTool({
+      name: "configure_webhook",
+      arguments: { url },
+    });
+    return { fn, result };
+  };
+
+  it.each(["https://x.com/h", "http://localhost:3000/h", "http://127.0.0.1:3000/h", "http://[::1]:3000/h", "HTTP://LOCALHOST/h"])(
+    "accepts %s",
+    async (url) => {
+      const { fn, result } = await call(url);
+      expect(result.isError).toBeFalsy();
+      expect(fn).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    "http://example.com/h",
+    "ftp://x.com/h",
+    "javascript:alert(1)",
+    "HTTP://LOCALHOST.evil.com/h",
+    "http://127.0.0.1.nip.io/h",
+    "not a url",
+  ])("rejects %s", async (url) => {
+    const { fn, result } = await call(url);
+    expect(result.isError).toBe(true);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("explains the https rule", async () => {
+    const { result } = await call("http://example.com/h");
+    expect(text(result)).toMatch(/https/i);
+  });
+});

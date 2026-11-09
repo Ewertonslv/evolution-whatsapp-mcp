@@ -33,3 +33,17 @@ export function brazilianNinthDigitVariant(jid: string): string | null {
   }
   return `55${area}9${local}@s.whatsapp.net`;
 }
+
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/** True for https URLs, and for http only when the host is exactly a loopback name. */
+export function isSecureWebhookUrl(input: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return false;
+  }
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname);
+}
