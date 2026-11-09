@@ -4,14 +4,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EvolutionClient } from "../src/evolution.js";
+import type { Config } from "../src/config.js";
 import { registerTools } from "../src/tools.js";
 
 const BASE = "http://evo.test";
 
 /** Connect an MCP client to a server with the tools registered, in memory. */
-async function connect(defaultInstance?: string) {
+async function connect(defaultInstance?: string, config?: Partial<Config>) {
   const server = new McpServer({ name: "test", version: "0.0.0" });
-  registerTools(server, new EvolutionClient({ baseUrl: BASE, apiKey: "k", defaultInstance }));
+  registerTools(server, new EvolutionClient({ baseUrl: BASE, apiKey: "k", defaultInstance }), config);
   const mcp = new Client({ name: "test-client", version: "0.0.0" });
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverSide), mcp.connect(clientSide)]);
@@ -207,5 +208,92 @@ describe("configure_webhook url", () => {
   it("explains the https rule", async () => {
     const { result } = await call("http://example.com/h");
     expect(text(result)).toMatch(/https/i);
+  });
+});
+
+describe("read-only mode", () => {
+  const WRITES = ["send_text", "send_media", "create_instance", "disconnect_instance", "configure_webhook"];
+
+  it("readOnly hides write tools", async () => {
+    const { tools } = await (await connect("demo", { readOnly: true })).listTools();
+    expect(tools.map((t) => t.name).sort()).toEqual([
+      "connection_status",
+      "find_chats",
+      "find_messages",
+      "get_qrcode",
+    ]);
+  });
+
+  it("write tools stay when readOnly is off", async () => {
+    const { tools } = await (await connect("demo", { readOnly: false })).listTools();
+    for (const name of WRITES) expect(tools.map((t) => t.name)).toContain(name);
+  });
+
+  it("calling a hidden write tool fails and sends nothing", async () => {
+    const fn = mockFetch({});
+    const mcp = await connect("demo", { readOnly: true });
+    const result = await mcp.callTool({ name: "send_text", arguments: { number: "5511999999999", text: "hi" } }).catch((e) => e);
+    expect(result instanceof Error || (result as { isError?: boolean }).isError).toBeTruthy();
+    expect(fn).not.toHaveBeenCalled();
+  });
+});
+
+describe("allowed numbers", () => {
+  const cfg = { allowedNumbers: ["5511999999999"] };
+  const send = async (number: string, name = "send_text") => {
+    const fn = mockFetch({ key: { id: "1" } });
+    const args =
+      name === "send_text"
+        ? { number, text: "hi" }
+        : { number, mediatype: "image", media: "https://x.test/a.png" };
+    const result = await (await connect("demo", cfg)).callTool({ name, arguments: args });
+    return { fn, result };
+  };
+
+  it.each(["+55 11 99999-9999", "5511999999999", "551199999999", "5511999999999@s.whatsapp.net"])(
+    "send_text allows %s",
+    async (number) => {
+      const { fn, result } = await send(number);
+      expect(result.isError).toBeFalsy();
+      expect(fn).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("send_text refuses a number outside the list without echoing it", async () => {
+    const { fn, result } = await send("5511888888888");
+    expect(result.isError).toBe(true);
+    expect(fn).not.toHaveBeenCalled();
+    expect(text(result)).toContain("EVOLUTION_ALLOWED_NUMBERS");
+    expect(text(result)).not.toContain("5511888888888");
+    expect(text(result)).not.toContain("888888888");
+  });
+
+  it("send_media is guarded too", async () => {
+    const ok = await send("5511999999999", "send_media");
+    expect(ok.result.isError).toBeFalsy();
+    const bad = await send("5511888888888", "send_media");
+    expect(bad.result.isError).toBe(true);
+    expect(bad.fn).not.toHaveBeenCalled();
+  });
+
+  it("refuses a group JID when a list exists", async () => {
+    const { fn, result } = await send("120363000000@g.us");
+    expect(result.isError).toBe(true);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("an allowlist entry with the ninth digit also matches the short form", async () => {
+    const fn = mockFetch({});
+    const mcp = await connect("demo", { allowedNumbers: ["551199999999"] });
+    const r = await mcp.callTool({ name: "send_text", arguments: { number: "5511999999999", text: "hi" } });
+    expect(r.isError).toBeFalsy();
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("no restriction when the list is empty", async () => {
+    const fn = mockFetch({});
+    const mcp = await connect("demo", { allowedNumbers: [] });
+    await mcp.callTool({ name: "send_text", arguments: { number: "5511888888888", text: "hi" } });
+    expect(fn).toHaveBeenCalledTimes(1);
   });
 });

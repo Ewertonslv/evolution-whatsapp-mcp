@@ -1,8 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+import type { Config } from "./config.js";
 import { EvolutionClient, EvolutionError } from "./evolution.js";
-import { brazilianNinthDigitVariant, isSecureWebhookUrl, toRemoteJid } from "./schemas.js";
+import { brazilianNinthDigitVariant, isSecureWebhookUrl, normalizePhone, toRemoteJid } from "./schemas.js";
 
 type TextResult = {
   content: { type: "text"; text: string }[];
@@ -48,10 +49,47 @@ const instanceArg = z
   .optional()
   .describe("Evolution instance name. Falls back to EVOLUTION_DEFAULT_INSTANCE.");
 
-export function registerTools(server: McpServer, client: EvolutionClient): void {
+/** Every number form (with and without the Brazilian ninth digit) the allowlist accepts. */
+function expandAllowed(numbers: string[]): Set<string> {
+  const set = new Set<string>();
+  for (const n of numbers) {
+    set.add(n);
+    const variant = brazilianNinthDigitVariant(`${n}@s.whatsapp.net`);
+    if (variant) set.add(variant.split("@")[0]);
+  }
+  return set;
+}
+
+/** Error result when `number` is outside the allowlist; null when the send may go ahead. */
+function checkAllowed(allowed: Set<string>, number: string): TextResult | null {
+  if (allowed.size === 0) return null;
+  const jid = toRemoteJid(number);
+  const [id, domain] = jid.split("@");
+  // The message never echoes the number: it may be a private contact.
+  const refuse = (): TextResult => ({
+    content: [
+      {
+        type: "text",
+        text: "Recipient is not in EVOLUTION_ALLOWED_NUMBERS. Nothing was sent.",
+      },
+    ],
+    isError: true,
+  });
+  if (domain !== "s.whatsapp.net") return refuse();
+  return allowed.has(normalizePhone(id)) ? null : refuse();
+}
+
+export function registerTools(
+  server: McpServer,
+  client: EvolutionClient,
+  config: Partial<Config> = {},
+): void {
+  const writable = !config.readOnly;
+  const allowed = expandAllowed(config.allowedNumbers ?? []);
+
   // --------------------------------------------------------------- messaging
 
-  server.registerTool(
+  if (writable) server.registerTool(
     "send_text",
     {
       description:
@@ -66,10 +104,11 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
       },
     },
     async ({ instance, number, text }) =>
-      run(() => client.sendText(resolveInstance(client, instance), number, text)),
+      checkAllowed(allowed, number) ??
+      (await run(() => client.sendText(resolveInstance(client, instance), number, text))),
   );
 
-  server.registerTool(
+  if (writable) server.registerTool(
     "send_media",
     {
       description:
@@ -89,7 +128,8 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
       },
     },
     async ({ instance, number, mediatype, media, mimetype, caption, fileName, delay }) =>
-      run(() =>
+      checkAllowed(allowed, number) ??
+      (await run(() =>
         client.sendMedia(resolveInstance(client, instance), number, {
           mediatype,
           media,
@@ -98,7 +138,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
           fileName,
           delay,
         }),
-      ),
+      )),
   );
 
   // ----------------------------------------------------------------- reading
@@ -148,7 +188,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
 
   // ---------------------------------------------------------------- instance
 
-  server.registerTool(
+  if (writable) server.registerTool(
     "create_instance",
     {
       description:
@@ -186,7 +226,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
       run(() => client.connectionStatus(resolveInstance(client, instance))),
   );
 
-  server.registerTool(
+  if (writable) server.registerTool(
     "disconnect_instance",
     {
       description:
@@ -200,7 +240,7 @@ export function registerTools(server: McpServer, client: EvolutionClient): void 
       run(() => client.disconnect(resolveInstance(client, instance))),
   );
 
-  server.registerTool(
+  if (writable) server.registerTool(
     "configure_webhook",
     {
       description:

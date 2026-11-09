@@ -3,7 +3,7 @@
  * evolution-whatsapp-mcp: MCP server exposing WhatsApp (Evolution API) as tools.
  *
  * Configure via env: EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_DEFAULT_INSTANCE,
- * EVOLUTION_TIMEOUT_MS.
+ * EVOLUTION_TIMEOUT_MS, EVOLUTION_READ_ONLY, EVOLUTION_ALLOWED_NUMBERS.
  * Speaks MCP over stdio. Wire it into Claude Desktop/Code or any MCP client.
  */
 import { createRequire } from "node:module";
@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { loadConfig } from "./config.js";
 import { EvolutionClient } from "./evolution.js";
 import { registerTools } from "./tools.js";
 
@@ -48,7 +49,7 @@ async function main(): Promise<void> {
     version,
   });
 
-  registerTools(server, client);
+  registerTools(server, client, loadConfig(process.env));
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
