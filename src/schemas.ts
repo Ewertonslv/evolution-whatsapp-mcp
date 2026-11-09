@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /** Shared helpers for normalizing WhatsApp identifiers. */
 
 /**
@@ -33,3 +35,35 @@ export function brazilianNinthDigitVariant(jid: string): string | null {
   }
   return `55${area}9${local}@s.whatsapp.net`;
 }
+
+export const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/** True for https URLs, and for http only when the host is exactly a loopback name. */
+export function isSecureWebhookUrl(input: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return false;
+  }
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname);
+}
+
+/**
+ * A recipient: a JID (anything with "@") or a phone with 8 to 15 digits once formatting
+ * characters are stripped.
+ */
+export const phoneSchema = z.string().refine(
+  (input) => {
+    const value = input.trim();
+    if (value.includes("@")) return value.split("@")[0].length > 0;
+    return /^\d{8,15}$/.test(normalizePhone(value));
+  },
+  { message: "number must be a phone with 8 to 15 digits (e.g. +55 11 99999-9999) or a JID containing @." },
+);
+
+/** A message body with at least one non-space character. */
+export const textSchema = z
+  .string()
+  .refine((t) => t.trim().length > 0, { message: "text must not be empty." });
