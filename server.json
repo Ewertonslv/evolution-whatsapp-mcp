@@ -1,0 +1,54 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ewertonslv/evolution-whatsapp-mcp",
+  "title": "Evolution WhatsApp",
+  "description": "Send and read WhatsApp messages, send media and manage instances via the Evolution API.",
+  "version": "0.1.2",
+  "websiteUrl": "https://github.com/Ewertonslv/evolution-whatsapp-mcp#readme",
+  "repository": {
+    "url": "https://github.com/Ewertonslv/evolution-whatsapp-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "evolution-whatsapp-mcp",
+      "version": "0.1.2",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "EVOLUTION_API_URL",
+          "description": "Base URL of your Evolution API server, e.g. http://localhost:8080. Use https outside localhost.",
+          "isRequired": true
+        },
+        {
+          "name": "EVOLUTION_API_KEY",
+          "description": "Evolution API key, sent as the apikey header.",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "EVOLUTION_DEFAULT_INSTANCE",
+          "description": "Default instance used when a tool call omits the instance argument.",
+          "isRequired": false
+        },
+        {
+          "name": "EVOLUTION_TIMEOUT_MS",
+          "description": "Per-request timeout in milliseconds (default 30000).",
+          "isRequired": false
+        },
+        {
+          "name": "EVOLUTION_READ_ONLY",
+          "description": "Set to true to hide every tool that sends or changes state (send_text, send_media, create_instance, disconnect_instance, configure_webhook).",
+          "isRequired": false
+        },
+        {
+          "name": "EVOLUTION_ALLOWED_NUMBERS",
+          "description": "Comma-separated phone numbers that send_text and send_media may reach. Empty means no restriction.",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}
