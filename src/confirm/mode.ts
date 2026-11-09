@@ -5,7 +5,7 @@ import type { ClientCaps } from "./client-caps.js";
 export type ConfirmMode = "direct" | "elicit" | "refuse";
 
 /** Pure choice of confirmation channel from the config and what the client declared. */
-export function chooseMode(config: Pick<Config, "confirmWrites">, caps: ClientCaps): ConfirmMode {
+export function chooseMode(config: Partial<Pick<Config, "confirmWrites">>, caps: ClientCaps): ConfirmMode {
   if (!config.confirmWrites) return "direct";
   const elicitation = caps.elicitation;
   if (elicitation && typeof elicitation === "object") {

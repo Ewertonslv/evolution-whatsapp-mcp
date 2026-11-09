@@ -1,7 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ElicitResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import type { Config } from "./config.js";
+import { readClientCaps } from "./confirm/client-caps.js";
+import { guardWrite, type ElicitFn } from "./confirm/gate.js";
+import { chooseMode } from "./confirm/mode.js";
+import type { WriteAction } from "./confirm/preview.js";
 import { EvolutionClient, EvolutionError } from "./evolution.js";
 import { brazilianNinthDigitVariant, isSecureWebhookUrl, normalizePhone, phoneSchema, textSchema, toRemoteJid } from "./schemas.js";
 
@@ -103,6 +108,13 @@ export function registerTools(
 ): void {
   const writable = !config.readOnly;
   const allowed = expandAllowed(config.allowedNumbers ?? []);
+  // Elicitation goes straight to `request`: the SDK helper rejects a bare `elicitation: {}`,
+  // which the spec defines as form support.
+  const elicit: ElicitFn = (params, options) =>
+    server.server.request({ method: "elicitation/create", params }, ElicitResultSchema, options);
+  /** Run a write only after the human confirmation the config asks for (after checkAllowed). */
+  const guard = (action: WriteAction, args: Record<string, unknown>, execute: () => Promise<TextResult>) =>
+    guardWrite({ mode: chooseMode(config, readClientCaps(server)), elicit }, { action, args, execute });
 
   // --------------------------------------------------------------- messaging
 
@@ -122,7 +134,9 @@ export function registerTools(
     },
     async ({ instance, number, text }) =>
       checkAllowed(allowed, number) ??
-      (await run(() => client.sendText(resolveInstance(client, instance), number, text))),
+      (await guard("send_text", { number, text }, () =>
+        run(() => client.sendText(resolveInstance(client, instance), number, text)),
+      )),
   );
 
   if (writable) server.registerTool(
@@ -146,15 +160,17 @@ export function registerTools(
     },
     async ({ instance, number, mediatype, media, mimetype, caption, fileName, delay }) =>
       checkAllowed(allowed, number) ??
-      (await run(() =>
-        client.sendMedia(resolveInstance(client, instance), number, {
-          mediatype,
-          media,
-          mimetype,
-          caption,
-          fileName,
-          delay,
-        }),
+      (await guard("send_media", { number, mediatype, media, caption, fileName }, () =>
+        run(() =>
+          client.sendMedia(resolveInstance(client, instance), number, {
+            mediatype,
+            media,
+            mimetype,
+            caption,
+            fileName,
+            delay,
+          }),
+        ),
       )),
   );
 
@@ -217,7 +233,8 @@ export function registerTools(
         instance: z.string().describe("Name for the new instance."),
       },
     },
-    async ({ instance }) => run(() => client.createInstance(instance)),
+    async ({ instance }) =>
+      guard("create_instance", { instance }, () => run(() => client.createInstance(instance))),
   );
 
   server.registerTool(
@@ -260,7 +277,9 @@ export function registerTools(
       inputSchema: { instance: instanceArg },
     },
     async ({ instance }) =>
-      run(() => client.disconnect(resolveInstance(client, instance))),
+      guard("disconnect_instance", { instance: instance ?? client.defaultInstance }, () =>
+        run(() => client.disconnect(resolveInstance(client, instance))),
+      ),
   );
 
   if (writable) server.registerTool(
@@ -286,11 +305,13 @@ export function registerTools(
       },
     },
     async ({ instance, url, events }) =>
-      run(() =>
-        client.configureWebhook(
-          resolveInstance(client, instance),
-          url,
-          events ?? ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+      guard("configure_webhook", { instance: instance ?? client.defaultInstance, url, events }, () =>
+        run(() =>
+          client.configureWebhook(
+            resolveInstance(client, instance),
+            url,
+            events ?? ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+          ),
         ),
       ),
   );
