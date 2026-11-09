@@ -297,3 +297,72 @@ describe("allowed numbers", () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("response limits", () => {
+  const chats = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `c${i}` }));
+
+  it("find_chats cuts to 50 by default", async () => {
+    mockFetch(chats(300));
+    const result = await (await connect("demo")).callTool({ name: "find_chats", arguments: {} });
+    expect(JSON.parse(text(result))).toHaveLength(50);
+  });
+
+  it("find_chats honours an explicit limit", async () => {
+    mockFetch(chats(300));
+    const result = await (await connect("demo")).callTool({ name: "find_chats", arguments: { limit: 120 } });
+    expect(JSON.parse(text(result))).toHaveLength(120);
+  });
+
+  it.each([0, 201, -1])("find_chats rejects limit %i", async (limit) => {
+    const fn = mockFetch(chats(3));
+    const result = await (await connect("demo")).callTool({ name: "find_chats", arguments: { limit } });
+    expect(result.isError).toBe(true);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("find_messages sends limit 50 by default", async () => {
+    const fn = mockFetch({ messages: { total: 1 } });
+    await (await connect("demo")).callTool({ name: "find_messages", arguments: { chat: "5511999999999" } });
+    expect(JSON.parse(fn.mock.calls[0][1].body).offset).toBe(50);
+  });
+
+  it.each([0, 201])("find_messages rejects limit %i", async (limit) => {
+    const fn = mockFetch({});
+    const result = await (await connect("demo")).callTool({
+      name: "find_messages",
+      arguments: { chat: "5511999999999", limit },
+    });
+    expect(result.isError).toBe(true);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("truncates an oversized payload with a warning", async () => {
+    mockFetch({ blob: "x".repeat(200_000) });
+    const result = await (await connect("demo")).callTool({ name: "connection_status", arguments: {} });
+    const out = text(result);
+    expect(out.length).toBeLessThan(101_000);
+    expect(out).toContain("truncated: use limit/page");
+  });
+
+  it("does not truncate a small payload", async () => {
+    mockFetch({ ok: true });
+    const result = await (await connect("demo")).callTool({ name: "connection_status", arguments: {} });
+    expect(text(result)).not.toContain("truncated");
+  });
+
+  it("get_qrcode keeps the pairing code and drops an oversized base64", async () => {
+    mockFetch({ pairingCode: "ABCD-1234", code: "2@xyz", base64: "A".repeat(200_000) });
+    const result = await (await connect("demo")).callTool({ name: "get_qrcode", arguments: {} });
+    const out = JSON.parse(text(result));
+    expect(out.pairingCode).toBe("ABCD-1234");
+    expect(out.code).toBe("2@xyz");
+    expect(out.base64).toBeUndefined();
+    expect(out.base64Omitted).toMatch(/too large/);
+  });
+
+  it("get_qrcode keeps a normal base64", async () => {
+    mockFetch({ pairingCode: "ABCD-1234", base64: "data:image/png;base64,AAAA" });
+    const result = await (await connect("demo")).callTool({ name: "get_qrcode", arguments: {} });
+    expect(JSON.parse(text(result)).base64).toBe("data:image/png;base64,AAAA");
+  });
+});

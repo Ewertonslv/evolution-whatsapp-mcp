@@ -22,11 +22,28 @@ function resolveInstance(client: EvolutionClient, provided?: string): string {
   return instance;
 }
 
+/** Largest serialized response, in characters, handed back to the model. */
+const MAX_RESPONSE_CHARS = 100_000;
+
+const limitArg = z
+  .number()
+  .int()
+  .min(1)
+  .max(200)
+  .default(50)
+  .describe("Maximum items to return (1-200, default 50).");
+
 /** Run an Evolution call and shape the result as an MCP tool response. */
 async function run(fn: () => Promise<unknown>): Promise<TextResult> {
   try {
     const data = await fn();
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+    let out = JSON.stringify(data, null, 2) ?? "null";
+    if (out.length > MAX_RESPONSE_CHARS) {
+      out =
+        out.slice(0, MAX_RESPONSE_CHARS) +
+        "\n\n[truncated: use limit/page to read the rest in smaller pieces]";
+    }
+    return { content: [{ type: "text", text: out }] };
   } catch (err) {
     const message =
       err instanceof EvolutionError
@@ -146,12 +163,17 @@ export function registerTools(
   server.registerTool(
     "find_chats",
     {
-      description: "List the WhatsApp chats/conversations on the instance.",
+      description:
+        "List the WhatsApp chats/conversations on the instance. Returns at most `limit` " +
+        "chats (default 50, max 200).",
       annotations: { readOnlyHint: true, openWorldHint: true },
-      inputSchema: { instance: instanceArg },
+      inputSchema: { instance: instanceArg, limit: limitArg },
     },
-    async ({ instance }) =>
-      run(() => client.findChats(resolveInstance(client, instance))),
+    async ({ instance, limit }) =>
+      run(async () => {
+        const chats = await client.findChats(resolveInstance(client, instance));
+        return Array.isArray(chats) ? chats.slice(0, limit) : chats;
+      }),
   );
 
   server.registerTool(
@@ -164,12 +186,7 @@ export function registerTools(
         chat: z
           .string()
           .describe('Phone ("5511999999999") or JID ("...@s.whatsapp.net").'),
-        limit: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("Messages per page. Evolution returns 50 when omitted."),
+        limit: limitArg.describe("Messages per page (1-200, default 50)."),
         page: z.number().int().positive().optional().describe("Page number, starting at 1."),
       },
     },
@@ -212,7 +229,13 @@ export function registerTools(
       inputSchema: { instance: instanceArg },
     },
     async ({ instance }) =>
-      run(() => client.getQrcode(resolveInstance(client, instance))),
+      run(async () => {
+        const qr = await client.getQrcode(resolveInstance(client, instance));
+        if (JSON.stringify(qr).length <= MAX_RESPONSE_CHARS) return qr;
+        // Keep the pairing code and raw code; the base64 image is what blows the budget.
+        const { base64: _dropped, ...rest } = (qr ?? {}) as Record<string, unknown>;
+        return { ...rest, base64Omitted: "QR image too large to return; use pairingCode or code." };
+      }),
   );
 
   server.registerTool(
