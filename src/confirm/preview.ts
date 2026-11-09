@@ -27,6 +27,9 @@ const TITLES: Record<WriteAction, string> = {
   configure_webhook: "Replace webhook",
 };
 
+/** One line, so free text can't fake the dialog's own layout. */
+const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
+
 function clip(text: string, max: number): string {
   return text.length > max ? text.slice(0, max) + "…" : text;
 }
@@ -61,6 +64,7 @@ function webhookOrigin(url: string): string {
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
+const name = (v: unknown): string => clip(oneLine(str(v)), 60);
 
 export function buildPreview(action: WriteAction, args: Record<string, unknown>): Preview {
   switch (action) {
@@ -69,7 +73,7 @@ export function buildPreview(action: WriteAction, args: Record<string, unknown>)
         action,
         target: maskPhone(str(args.number)),
         targetFull: fullTarget(str(args.number)),
-        body: clip(str(args.text), BODY_MAX),
+        body: clip(oneLine(str(args.text)), BODY_MAX),
       };
     case "send_media": {
       // `media` (URL or base64) is deliberately never read here.
@@ -79,13 +83,13 @@ export function buildPreview(action: WriteAction, args: Record<string, unknown>)
         action,
         target: maskPhone(str(args.number)),
         targetFull: fullTarget(str(args.number)),
-        body: clip(caption ? `${head}: ${caption}` : head, BODY_MAX),
+        body: clip(oneLine(caption ? `${head}: ${caption}` : head), BODY_MAX),
       };
     }
     case "create_instance":
-      return { action, target: str(args.instance), targetFull: str(args.instance), body: "integration WHATSAPP-BAILEYS" };
+      return { action, target: name(args.instance), targetFull: name(args.instance), body: "integration WHATSAPP-BAILEYS" };
     case "disconnect_instance":
-      return { action, target: str(args.instance), targetFull: str(args.instance), body: `Log out instance ${str(args.instance)}` };
+      return { action, target: name(args.instance), targetFull: name(args.instance), body: `Log out instance ${name(args.instance)}` };
     case "configure_webhook": {
       const events = Array.isArray(args.events) ? args.events.length : 0;
       return {

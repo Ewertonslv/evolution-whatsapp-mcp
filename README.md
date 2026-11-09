@@ -100,7 +100,7 @@ For other clients, add it to the MCP client config. For **Claude Desktop** / **C
 | `EVOLUTION_DEFAULT_INSTANCE` | no | Default instance when a tool omits `instance` |
 | `EVOLUTION_TIMEOUT_MS` | no | Per-request timeout in milliseconds (default `30000`) |
 | `EVOLUTION_READ_ONLY` | no | `true`, `1` or `yes` (any case) hides `send_text`, `send_media`, `create_instance`, `disconnect_instance` and `configure_webhook`. Anything else leaves them on |
-| `EVOLUTION_CONFIRM_WRITES` | no | `true`, `1` or `yes` (any case) makes `send_text`, `send_media`, `create_instance`, `disconnect_instance` and `configure_webhook` wait for a human to confirm. A client that can show no confirmation is refused and nothing is sent. Default off |
+| `EVOLUTION_CONFIRM_WRITES` | no | `true`, `1` or `yes` (any case) makes `send_text`, `send_media`, `create_instance`, `disconnect_instance` and `configure_webhook` wait for a human to confirm. A client that can show no confirmation is refused and nothing is sent. `false`, `0`, `no` or empty is off (default). Any other value (a typo such as `ture` or `on`) counts as on and prints a warning on stderr |
 | `EVOLUTION_ALLOWED_NUMBERS` | no | Comma-separated numbers `send_text` and `send_media` may reach (e.g. `5511999999999,5521988887777`). Empty means no restriction. Brazilian numbers match with or without the ninth digit; group JIDs are refused when the list is set |
 
 Because an LLM drives these tools, a prompt injected through a received message could ask it to send
